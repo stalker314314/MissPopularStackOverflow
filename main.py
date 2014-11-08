@@ -94,9 +94,9 @@ def insert_answers(db):
                        'accepted_answer_text': None,
                        'question_creation_date': {'$lt': config.MAXIMUM_DATETIME_UTC, '$gte': config.MINIMAL_DATETIME_UTC}}) \
                 .sort([('question_creation_date', 1)]) \
-                .limit(100)
+                .limit(89)
             answer_ids = {}
-            if questions.count() < 100:
+            if questions.count() < 89:
                 logger.info('[answers] Not enough answers to process')
                 time.sleep(30)
                 continue
