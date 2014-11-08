@@ -15,6 +15,7 @@ from tzlocal import get_localzone
 
 STACK_EXCHANGE_APP_KEY = '<insert-app-key>'
 MINIMAL_DATETIME_UTC = Delorean(datetime.datetime(2006, 1, 1), 'UTC').datetime.timestamp()
+MAXIMUM_DATETIME_UTC = Delorean(datetime.datetime(2009, 1, 1), 'UTC').datetime
 throttled_for = 0
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,10 @@ ch.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
+
+#ch = logging.StreamHandler()
+#ch.setLevel(logging.DEBUG)
+#logger.addHandler(ch)
 
 def exception_hook(exctype, value, tb):
     logger.critical('{0}: {1}'.format(exctype, value))
@@ -38,7 +43,13 @@ def insert_questions(db):
     while(True):
         try:
             creation_date_utc = MINIMAL_DATETIME_UTC
-            last_question = db.entries.find({'accepted_answer_text': None}).sort([('question_creation_date', -1)]).limit(1)
+            last_question = db.entries \
+                .find(
+                      {
+                       'accepted_answer_text': None,
+                       'question_creation_date': {'$lt': MAXIMUM_DATETIME_UTC}}) \
+                .sort([('question_creation_date', -1)]) \
+                .limit(1)
             if last_question.count() > 0:
                 last_datetime_utc = Delorean(last_question[0]['question_creation_date'], 'UTC').shift(get_my_timezone()).datetime.timestamp()
                 if last_datetime_utc > creation_date_utc:
@@ -49,7 +60,7 @@ def insert_questions(db):
             for question in questions:
                 i = i + 1
                 if i % 30 == 0:
-                    logger.info('[questions] Requests left: %d', so.rate_limit)
+                    logger.info('[questions] Requests left: %d/%d', so.rate_limit[0], so.rate_limit[1])
                 creation_date_utc = Delorean(question.creation_date, get_my_timezone()).shift('UTC').datetime
                 if not db.entries.find_one({'question_id': question.id}):
                     logger.info('[questions] Inserting question %d from time %s', question.id, creation_date_utc)
