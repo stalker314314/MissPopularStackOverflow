@@ -11,11 +11,8 @@ from pymongo.mongo_client import MongoClient
 import stackexchange
 from stackexchange.core import StackExchangeError
 from tzlocal import get_localzone
+import config
 
-
-STACK_EXCHANGE_APP_KEY = '<insert-app-key>'
-MINIMAL_DATETIME_UTC = Delorean(datetime.datetime(2006, 1, 1), 'UTC').datetime.timestamp()
-MAXIMUM_DATETIME_UTC = Delorean(datetime.datetime(2009, 1, 1), 'UTC').datetime
 throttled_for = 0
 
 logger = logging.getLogger(__name__)
@@ -39,15 +36,12 @@ def get_my_timezone():
 
 def insert_questions(db):
     global throttled_for
-    so = stackexchange.Site(stackexchange.StackOverflow, app_key=STACK_EXCHANGE_APP_KEY)
+    so = stackexchange.Site(stackexchange.StackOverflow, app_key=config.STACK_EXCHANGE_APP_KEY)
     while(True):
         try:
-            creation_date_utc = MINIMAL_DATETIME_UTC
+            creation_date_utc = config.MINIMAL_DATETIME_UTC.timestamp()
             last_question = db.entries \
-                .find(
-                      {
-                       'accepted_answer_text': None,
-                       'question_creation_date': {'$lt': MAXIMUM_DATETIME_UTC}}) \
+                .find({'question_creation_date': {'$lt': config.MAXIMUM_DATETIME_UTC, '$gte': config.MINIMAL_DATETIME_UTC}}) \
                 .sort([('question_creation_date', -1)]) \
                 .limit(1)
             if last_question.count() > 0:
@@ -86,7 +80,7 @@ def insert_questions(db):
                 raise
 
 def insert_answers(db):
-    so = stackexchange.Site(stackexchange.StackOverflow, app_key=STACK_EXCHANGE_APP_KEY)
+    so = stackexchange.Site(stackexchange.StackOverflow, app_key=config.STACK_EXCHANGE_APP_KEY)
     while(True):
         try:
             if throttled_for > 0:
@@ -94,7 +88,13 @@ def insert_answers(db):
                 # message = too many requests from this IP, more requests available in %d seconds
                 sleep(throttled_for)
 
-            questions = db.entries.find({'accepted_answer_text': None}).sort([('question_creation_date', 1)]).limit(100)
+            questions = db.entries \
+                .find(
+                      {
+                       'accepted_answer_text': None,
+                       'question_creation_date': {'$lt': config.MAXIMUM_DATETIME_UTC, '$gte': config.MINIMAL_DATETIME_UTC}}) \
+                .sort([('question_creation_date', 1)]) \
+                .limit(100)
             answer_ids = {}
             if questions.count() < 100:
                 logger.info('[answers] Not enough answers to process')
@@ -121,7 +121,7 @@ def insert_answers(db):
 
 if __name__ == '__main__':
     sys.excepthook = exception_hook
-    db = MongoClient('localhost', 27017)['so']
+    db = MongoClient(config.MONGO_SERVER, config.MONGO_PORT)['so']
     inserting_questions = Thread(target=insert_questions, args = [db])
     inserting_questions.start()
     inserting_answers = Thread(target=insert_answers, args = [db])
