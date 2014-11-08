@@ -9,6 +9,7 @@ from stackexchange.core import StackExchangeError
 from time import sleep
 
 STACK_EXCHANGE_APP_KEY = '<insert-app-key>'
+MINIMAL_DATETIME_UTC = Delorean(datetime.datetime(2006, 1, 1), 'UTC').datetime.timestamp()
 throttled_for = 0
 
 def get_my_timezone():
@@ -19,9 +20,12 @@ def insert_questions(db):
     so = stackexchange.Site(stackexchange.StackOverflow, app_key=STACK_EXCHANGE_APP_KEY)
     while(True):
         try:
+            creation_date_utc = MINIMAL_DATETIME_UTC
             last_question = db.entries.find({'accepted_answer_text': None}).sort([('question_creation_date', -1)]).limit(1)
             if last_question.count() > 0:
-                creation_date_utc = Delorean(last_question[0]['question_creation_date'], 'UTC').shift(get_my_timezone()).datetime.timestamp()
+                last_datetime_utc = Delorean(last_question[0]['question_creation_date'], 'UTC').shift(get_my_timezone()).datetime.timestamp()
+                if last_datetime_utc > creation_date_utc:
+                    creation_date_utc = last_datetime_utc
             questions = so.search_advanced(sort="creation", order="asc", accepted=True, fromdate=creation_date_utc)
 
             i = 0
