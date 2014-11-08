@@ -51,7 +51,7 @@ def insert_questions(db):
                 raise
 
 def insert_answers(db):
-    so = stackexchange.Site(stackexchange.StackOverflow, app_key='25zqfj))bCNdUiFRnAET8g((')
+    so = stackexchange.Site(stackexchange.StackOverflow, app_key=STACK_EXCHANGE_APP_KEY)
     while(True):
         try:
             if throttled_for > 0:
