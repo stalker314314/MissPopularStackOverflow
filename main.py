@@ -98,7 +98,7 @@ def insert_answers(db):
             answer_ids = {}
             if questions.count() < 100:
                 logger.info('[answers] Not enough answers to process')
-                time.sleep(8)
+                time.sleep(30)
                 continue
             for question in questions:
                 answer_ids[question['accepted_answer_id']] = question['_id'] 
