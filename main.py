@@ -94,26 +94,34 @@ def insert_answers(db):
                        'accepted_answer_text': None,
                        'question_creation_date': {'$lt': config.MAXIMUM_DATETIME_UTC, '$gte': config.MINIMAL_DATETIME_UTC}}) \
                 .sort([('question_creation_date', 1)]) \
-                .limit(89)
+                .limit(30)
             answer_ids = {}
-            if questions.count() < 89:
+            if questions.count() < 30:
                 logger.info('[answers] Not enough answers to process')
-                time.sleep(30)
+                time.sleep(10)
                 continue
             for question in questions:
                 answer_ids[question['accepted_answer_id']] = question['_id'] 
-            answers = so.answers(list(answer_ids.keys()), body=True)
+            answers = so.answers(list(answer_ids.keys()), body=True, sort='creation', order='asc')
+            processed = 0
             for answer in answers:
-                db.entries.update(
-                                  {'_id': answer_ids[answer.id]},
-                                  {'$set': {'accepted_answer_text': answer.json['body'], 'accepted_answer_score': answer.score}})
-            logger.info('[answers] Processed batch')
+                if answer.id in answer_ids:
+                    db.entries.update(
+                                      {'_id': answer_ids[answer.id]},
+                                      {'$set': {'accepted_answer_text': answer.json['body'], 'accepted_answer_score': answer.score}})
+                    processed = processed + 1
+                    del answer_ids[answer.id]
+            logger.info('[answers] Processed batch of size %d', processed)
+            if len(answer_ids) > 0:
+                logger.warning('[answers] Unprocessed answers (%d) which answers will be removed: %s', len(answer_ids), str(answer_ids))
+                for answer_id in answer_ids.keys():
+                    db.entries.remove({'accepted_answer_id': answer_id})
             time.sleep(1)
         except StackExchangeError as e:
             if e.code == 502 and e.name == 'throttle_violation':
+                # message = too many requests from this IP, more requests available in %d seconds
                 sleep_timeout = int(e.message[59:-8])
                 logger.info('[answers] Sleeping from throttling for %d seconds', sleep_timeout)
-                # message = too many requests from this IP, more requests available in %d seconds
                 sleep(sleep_timeout)
                 continue
             else:
