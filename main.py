@@ -51,10 +51,15 @@ def insert_questions(db):
             questions = so.search_advanced(sort='creation', order='asc', accepted=True, fromdate=creation_date_utc)
 
             i = 0
+            speed_requests = 0
+            speed_start_time = time.time()
             for question in questions:
                 i = i + 1
-                if i % 30 == 0:
-                    logger.info('[questions] Requests left: %d/%d', so.rate_limit[0], so.rate_limit[1])
+                if i % 100 == 0:
+                    speed = speed_requests / (time.time() - speed_start_time)
+                    logger.info('[questions] Requests left: %d/%d, average size: %f questions/sec', so.rate_limit[0], so.rate_limit[1], speed)
+                    speed_start_time = time.time()
+                    speed_requests = 0
                 creation_date_utc = Delorean(question.creation_date, get_my_timezone()).shift('UTC').datetime
                 if not db.entries.find_one({'question_id': question.id}):
                     logger.info('[questions] Inserting question %d from time %s', question.id, creation_date_utc)
@@ -66,7 +71,7 @@ def insert_questions(db):
                                        'accepted_answer_id': question.json['accepted_answer_id']})
                 else:
                     logger.info('Question %d from time %s already exists', question.id, creation_date_utc)
-                time.sleep(0.1)
+                speed_requests = speed_requests + 1
                 throttled_for = 0
         except StackExchangeError as e:
             if e.code == 502 and e.name == 'throttle_violation':
