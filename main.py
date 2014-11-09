@@ -72,6 +72,7 @@ def insert_questions(db):
                 else:
                     logger.info('Question %d from time %s already exists', question.id, creation_date_utc)
                 speed_requests = speed_requests + 1
+                time.sleep(0.1)
                 throttled_for = 0
         except StackExchangeError as e:
             if e.code == 502 and e.name == 'throttle_violation':
@@ -103,7 +104,7 @@ def insert_answers(db):
             answer_ids = {}
             if questions.count() < 30:
                 logger.info('[answers] Not enough answers to process')
-                time.sleep(10)
+                time.sleep(2)
                 continue
             for question in questions:
                 answer_ids[question['accepted_answer_id']] = question['_id'] 
@@ -121,7 +122,7 @@ def insert_answers(db):
                 logger.warning('[answers] Unprocessed answers (%d) which answers will be removed: %s', len(answer_ids), str(answer_ids))
                 #for answer_id in answer_ids.keys():
                 #    db.entries.remove({'accepted_answer_id': answer_id})
-            time.sleep(1)
+            time.sleep(0.1)
         except StackExchangeError as e:
             if e.code == 502 and e.name == 'throttle_violation':
                 # message = too many requests from this IP, more requests available in %d seconds
