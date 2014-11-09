@@ -70,10 +70,10 @@ def insert_questions(db):
                 throttled_for = 0
         except StackExchangeError as e:
             if e.code == 502 and e.name == 'throttle_violation':
+                # message = too many requests from this IP, more requests available in %d seconds
                 sleep_timeout = int(e.message[59:-8])
                 throttled_for = sleep_timeout
                 logger.info('[questions] Sleeping from throttling for %d seconds', sleep_timeout)
-                # message = too many requests from this IP, more requests available in %d seconds
                 sleep(sleep_timeout)
                 continue
             else:
@@ -84,8 +84,8 @@ def insert_answers(db):
     while(True):
         try:
             if throttled_for > 0:
-                logger.info('[answers] Sleeping from throttling for %d seconds', throttled_for)
                 # message = too many requests from this IP, more requests available in %d seconds
+                logger.info('[answers] Sleeping from throttling for %d seconds', throttled_for)
                 sleep(throttled_for)
 
             questions = db.entries \
@@ -114,8 +114,8 @@ def insert_answers(db):
             logger.info('[answers] Processed batch of size %d', processed)
             if len(answer_ids) > 0:
                 logger.warning('[answers] Unprocessed answers (%d) which answers will be removed: %s', len(answer_ids), str(answer_ids))
-                for answer_id in answer_ids.keys():
-                    db.entries.remove({'accepted_answer_id': answer_id})
+                #for answer_id in answer_ids.keys():
+                #    db.entries.remove({'accepted_answer_id': answer_id})
             time.sleep(1)
         except StackExchangeError as e:
             if e.code == 502 and e.name == 'throttle_violation':
