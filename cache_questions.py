@@ -41,3 +41,4 @@ if __name__ == '__main__':
             pickle.dump(questions_cache, open('questions_cache.p', 'wb'))
             logger.info('Processing row %d, last processed id %d, speed %f rows/sec', i,  questions_cache['processed_id'], 10000 / (time.time() - benchmark_start_time))
             benchmark_start_time = time.time()
+    pickle.dump(questions_cache, open('questions_cache.p', 'wb'))
